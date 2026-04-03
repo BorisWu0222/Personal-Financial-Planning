@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>個人理財試算</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#1a1a1a;background:#f5f4f0;min-height:100vh;padding:20px;}
+.wrap{display:flex;min-height:660px;border:1px solid #ddd;border-radius:12px;overflow:hidden;background:#fff;max-width:1200px;margin:0 auto;}
+.sidebar{width:276px;min-width:276px;border-right:1px solid #e8e8e8;overflow-y:auto;padding:14px;background:#fafaf8;}
+.main{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;}
+h1{font-size:15px;font-weight:600;margin-bottom:3px;}
+.subtitle{font-size:11px;color:#888;margin-bottom:12px;}
+
+/* ── BIG SECTION HEADERS ── */
+.big-hdr{font-size:11px;font-weight:700;letter-spacing:.06em;padding:5px 9px;border-radius:7px;margin:14px 0 6px;display:flex;align-items:center;gap:5px;}
+.big-hdr.income{background:#eaf3de;color:#2a5a0a;}
+.big-hdr.cost{background:#fce8e8;color:#7a2020;}
+.big-hdr.base{background:#e8f0fb;color:#185FA5;}
+
+/* ── SMALL SECTION TITLE ── */
+.sec-title{font-size:11px;font-weight:700;color:#444;text-transform:none;letter-spacing:0;border-bottom:1px solid #e0e0e0;padding-bottom:5px;margin:12px 0 8px;display:flex;align-items:center;gap:5px;} .sec-title .n{color:#185FA5;margin-right:1px;}
+
+.seg{display:flex;border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-bottom:8px;}
+.seg button{flex:1;padding:5px 2px;border:none;background:transparent;font-family:inherit;font-size:11px;color:#888;cursor:pointer;}
+.seg button.on{background:#185FA5;color:#fff;font-weight:500;}
+.field{margin-bottom:8px;}
+.field label{display:block;font-size:11px;color:#666;margin-bottom:2px;}
+.field-row{display:flex;align-items:center;gap:5px;}
+.field input[type=number],.field select{flex:1;background:#fff;border:1px solid #ddd;border-radius:7px;color:#1a1a1a;padding:5px 7px;font-size:12px;font-family:inherit;}
+.field input:focus,.field select:focus{outline:none;border-color:#185FA5;}
+.field span{font-size:11px;color:#888;white-space:nowrap;}
+.tog-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.tog-row>span{font-size:12px;}
+.tog{width:32px;height:18px;border-radius:9px;background:#ccc;position:relative;cursor:pointer;flex-shrink:0;transition:background .2s;}
+.tog.on{background:#185FA5;}
+.tog::after{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s;}
+.tog.on::after{left:17px;}
+.info-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#b8b8b8;color:#fff;font-size:9px;font-weight:700;cursor:help;font-style:normal;flex-shrink:0;transition:background .15s;}
+.info-icon:hover{background:#185FA5;}
+#tip-box{position:fixed;background:#222;color:#fff;padding:9px 13px;border-radius:8px;font-size:11px;line-height:1.75;max-width:280px;z-index:9999;display:none;pointer-events:none;box-shadow:0 4px 18px rgba(0,0,0,.28);}
+.tax-badge{font-size:10px;color:#555;background:transparent;border:1px solid #ccc;border-radius:6px;padding:7px 10px;line-height:1.75;margin-bottom:6px;}
+.cost-summary{font-size:10px;color:#555;background:transparent;border:1px solid #ccc;border-radius:6px;padding:7px 10px;line-height:1.75;margin-bottom:6px;}
+
+/* period rows */
+.period-row{display:flex;align-items:center;gap:4px;margin-bottom:5px;font-size:12px;}
+.period-row input{width:48px;background:#fff;border:1px solid #ddd;border-radius:6px;padding:4px 5px;font-size:12px;font-family:inherit;text-align:right;}
+.p-tag{font-size:10px;color:#888;min-width:30px;}
+.p-rm{background:none;border:none;color:#ccc;font-size:16px;cursor:pointer;padding:0 3px;line-height:1;}
+.p-rm:hover{color:#993C1D;}
+.p-add{background:none;border:1px dashed #ccc;border-radius:7px;width:100%;padding:5px;font-size:11px;color:#888;cursor:pointer;font-family:inherit;margin-top:2px;}
+.p-add:hover{border-color:#185FA5;color:#185FA5;}
+
+/* goal scenario */
+.scenario-block{border:1px solid #e8e8e8;border-radius:9px;padding:9px 10px;margin-bottom:7px;background:#fff;}
+.scen-hdr{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.scen-name{flex:1;background:#fff;border:1px solid #ddd;border-radius:6px;padding:4px 7px;font-size:12px;font-family:inherit;}
+.scen-rm{background:none;border:none;color:#ccc;font-size:18px;cursor:pointer;padding:0 2px;line-height:1;}
+.scen-rm:hover{color:#993C1D;}
+.scen-add{background:none;border:1px dashed #b3cef0;border-radius:8px;width:100%;padding:6px;font-size:11px;color:#185FA5;cursor:pointer;font-family:inherit;margin-top:2px;}
+.scen-add:hover{background:#e8f0fb;}
+.preset-tag{font-size:9px;background:#e8f0fb;color:#185FA5;border-radius:4px;padding:1px 5px;font-weight:500;}
+
+/* main area */
+.cards{display:grid;gap:10px;}
+.cards-3{grid-template-columns:repeat(3,1fr);}
+.card{background:#f5f4f0;border-radius:8px;padding:11px;}
+.card-label{font-size:10px;color:#888;margin-bottom:4px;}
+.card-val{font-size:19px;font-weight:600;font-family:monospace;}
+.card-sub{font-size:10px;color:#888;margin-top:2px;}
+.chart-wrap{background:#f5f4f0;border:1px solid #e5e5e5;border-radius:12px;padding:13px;}
+.chart-legend{display:flex;gap:14px;font-size:11px;color:#666;margin-bottom:9px;flex-wrap:wrap;}
+.leg-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:6px 10px;text-align:right;font-size:12px;border-bottom:1px solid #f0f0f0;}
+th{font-weight:500;color:#888;background:#fafafa;}
+td:first-child,th:first-child{text-align:left;}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;}
+.ok{background:#eaf3de;color:#3B6D11;}.ng{background:#fce8e8;color:#993C1D;}.warn{background:#e8f0fb;color:#185FA5;}
+.tbl-wrap{background:#fafafa;border:1px solid #eee;border-radius:12px;overflow:hidden;}
+.tbl-hdr{padding:9px 13px;font-size:11px;color:#888;border-bottom:1px solid #eee;display:flex;align-items:center;gap:5px;}
+.cmp-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.cmp-card{border:1px solid #e8e8e8;border-radius:10px;padding:13px;}
+.cmp-title{font-size:12px;font-weight:600;margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid #eee;}
+.cmp-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f5f5f5;font-size:12px;}
+.cmp-row:last-child{border:none;}.cmp-key{color:#888;}.cmp-val{font-family:monospace;font-weight:500;}
+.goal-summary{background:#e8f0fb;border:1px solid #b3cef0;border-radius:10px;padding:13px 15px;font-size:12px;line-height:1.85;}
+.goal-cell{display:inline-block;padding:5px 6px;border-radius:7px;font-family:monospace;font-size:11px;font-weight:600;border:2px solid transparent;cursor:pointer;min-width:62px;text-align:center;transition:border-color .12s;}
+.legend-bar{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#666;}
+.legend-bar .dot{width:11px;height:11px;border-radius:3px;display:inline-block;}
+.sub-label{font-size:10px;font-weight:600;color:#555;margin:8px 0 5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main" id="main"></div>
+</div>
+<div id="tip-box"></div>
+<script>
+// ══════════════════════════════════════════════════════════════
+// COUNTRIES — tax + defaults + daily expense defaults
+// ══════════════════════════════════════════════════════════════
+const CC={
+  tw:{name:'台灣',cur:'NT$',
+    def:{sal:40000,ret:50000,house:15000000,salStep:1000,retStep:5000,houseStep:500000,rent:20000,
+         mealPerMeal:100,mealsPerDay:3,weekendDaily:600},
+    salRows:[25000,30000,35000,40000,45000,50000,60000,70000],
+    taxNote:'台灣綜合所得稅（2024）\n標準扣除額 NT$124,000 + 免稅額 NT$92,000 = NT$216,000\n稅率 5% / 12% / 20% / 30% / 40%（累進）\n不含二代健保補充費、勞保費',
+    tax(y){const t=Math.max(0,y-216000),b=[[560000,.05],[700000,.12],[1260000,.20],[2200000,.30],[Infinity,.40]];let r=0,rem=t;for(const[l,p]of b){const c=Math.min(rem,l);r+=c*p;rem-=c;if(rem<=0)break;}return r;}},
+  us:{name:'美國（聯邦）',cur:'US$',
+    def:{sal:5000,ret:4000,house:400000,salStep:500,retStep:500,houseStep:25000,rent:2000,
+         mealPerMeal:12,mealsPerDay:3,weekendDaily:80},
+    salRows:[3000,4000,5000,6000,7000,8000,10000,12000],
+    taxNote:'美國聯邦個人所得稅（2024，單身申報）\n標準扣除額：$14,600\n稅率：10% / 12% / 22% / 24% / 32% / 35% / 37%\n不含州稅（各州 0–13%）、FICA 社保稅（7.65%）',
+    tax(y){const t=Math.max(0,y-14600),b=[[11600,.10],[35550,.12],[53375,.22],[91425,.24],[51775,.32],[365625,.35],[Infinity,.37]];let r=0,rem=t;for(const[l,p]of b){const c=Math.min(rem,l);r+=c*p;rem-=c;if(rem<=0)break;}return r;}},
+  uk:{name:'英國',cur:'£',
+    def:{sal:3000,ret:2500,house:280000,salStep:200,retStep:200,houseStep:10000,rent:1500,
+         mealPerMeal:8,mealsPerDay:3,weekendDaily:50},
+    salRows:[2000,2500,3000,3500,4000,5000,6000,8000],
+    taxNote:'英國個人所得稅（2024/25）\n個人免稅額：£12,570\n稅率：20%（至 £50,270）/ 40%（至 £125,140）/ 45%\n不含國民保險 NI（受僱者約 8–12%）',
+    tax(y){const pa=Math.max(0,12570-Math.max(0,(y-100000)/2)),t=Math.max(0,y-pa),b=[[37700,.20],[74870,.40],[Infinity,.45]];let r=0,rem=t;for(const[l,p]of b){const c=Math.min(rem,l);r+=c*p;rem-=c;if(rem<=0)break;}return r;}},
+  de:{name:'德國',cur:'€',
+    def:{sal:3500,ret:2500,house:350000,salStep:200,retStep:200,houseStep:10000,rent:1200,
+         mealPerMeal:8,mealsPerDay:3,weekendDaily:45},
+    salRows:[2500,3000,3500,4000,5000,6000,7000,8000],
+    taxNote:'德國所得稅（2024，單身）\n基本免稅額：€11,604\n線性累進：14% → 42%（€66,761+）/ 45%（€277,826+）\n不含團結稅（5.5% 稅額）、社保（約 20%）',
+    tax(y){if(y<=11604)return 0;if(y<=17005){const z=(y-11604)/10000;return(979.18*z+1400)*z;}if(y<=66760){const z=(y-17005)/10000;return(192.59*z+2397)*z+966.53;}if(y<=277825)return .42*y-9972.98;return .45*y-18307.73;}},
+  ca:{name:'加拿大（聯邦）',cur:'C$',
+    def:{sal:4500,ret:3000,house:500000,salStep:500,retStep:500,houseStep:25000,rent:2000,
+         mealPerMeal:12,mealsPerDay:3,weekendDaily:60},
+    salRows:[3000,3500,4000,4500,5000,6000,7000,8000],
+    taxNote:'加拿大聯邦個人所得稅（2024）\n基本個人扣除額：C$15,705\n稅率：15% / 20.5% / 26% / 29% / 33%\n不含省稅（各省 5–25%）、CPP / EI 社保費',
+    tax(y){const t=Math.max(0,y-15705),b=[[55867,.15],[55866,.205],[43173,.26],[65094,.29],[Infinity,.33]];let r=0,rem=t;for(const[l,p]of b){const c=Math.min(rem,l);r+=c*p;rem-=c;if(rem<=0)break;}return r;}},
+  jp:{name:'日本',cur:'¥',
+    def:{sal:250000,ret:200000,house:40000000,salStep:10000,retStep:10000,houseStep:1000000,rent:100000,
+         mealPerMeal:800,mealsPerDay:3,weekendDaily:4000},
+    salRows:[180000,230000,290000,360000,450000,560000,700000,900000],
+    taxNote:'日本所得稅（2024）\n給與所得控除（最高 ¥1,950,000）+ 基本控除 ¥480,000\n稅率：5% / 10% / 20% / 23% / 33% / 40% / 45%（加復興稅 2.1%）\n不含住民稅（≈10%）、社保（≈15%）',
+    tax(y){let d;if(y<=1800000)d=Math.max(550000,y*.4);else if(y<=3600000)d=y*.3+180000;else if(y<=6600000)d=y*.2+540000;else if(y<=8500000)d=y*.1+1200000;else d=1950000;const t=Math.max(0,y-d-480000),b=[[1950000,.05],[1350000,.10],[3650000,.20],[2050000,.23],[9000000,.33],[22000000,.40],[Infinity,.45]];let r=0,rem=t;for(const[l,p]of b){const c=Math.min(rem,l);r+=c*p;rem-=c;if(rem<=0)break;}return r*1.021;}},
+  sg:{name:'新加坡',cur:'S$',
+    def:{sal:4000,ret:3000,house:800000,salStep:200,retStep:200,houseStep:25000,rent:2000,
+         mealPerMeal:6,mealsPerDay:3,weekendDaily:50},
+    salRows:[2500,3000,3500,4000,5000,6000,7000,8000],
+    taxNote:'新加坡個人所得稅（2024 課稅年度）\n扣除簡化為 S$6,000\n稅率：0%（至 $20k）→ 2% → 3.5% → 7% → 22%（$320k+）\n不含公積金 CPF（受僱者約 17–20%）',
+    tax(y){const t=Math.max(0,y-6000),b=[[20000,0],[10000,.02],[10000,.035],[40000,.07],[40000,.115],[40000,.15],[40000,.18],[40000,.19],[40000,.195],[40000,.20],[Infinity,.22]];let r=0,rem=t;for(const[l,p]of b){const c=Math.min(rem,l);r+=c*p;rem-=c;if(rem<=0)break;}return r;}},
+  au:{name:'澳洲',cur:'A$',
+    def:{sal:5000,ret:4000,house:700000,salStep:500,retStep:500,houseStep:25000,rent:2000,
+         mealPerMeal:15,mealsPerDay:3,weekendDaily:70},
+    salRows:[3000,4000,5000,6000,7000,8000,10000,12000],
+    taxNote:'澳洲個人所得稅（2024/25，Stage 3 生效）\n免稅門檻：A$18,200\n稅率：16%（至 $45,000）/ 30% / 37% / 45%\n不含 Medicare Levy（2%）、超級年金（11.5%）',
+    tax(y){const bs=[{l:18200,r:0},{l:45000,r:.16},{l:120000,r:.30},{l:180000,r:.37},{l:Infinity,r:.45}];let tax=0,prev=0;for(const{l,r}of bs){if(y<=prev)break;const c=Math.min(y,l)-prev;tax+=c*r;prev=l;}return tax;}},
+  fr:{name:'法國',cur:'€',
+    def:{sal:2800,ret:2500,house:300000,salStep:200,retStep:200,houseStep:10000,rent:1000,
+         mealPerMeal:10,mealsPerDay:3,weekendDaily:45},
+    salRows:[2000,2500,3000,3500,4000,5000,6000,7000],
+    taxNote:'法國個人所得稅（2024）\n就業扣除：薪資 10%（min €472，max €14,171）\n稅率：0%（至 €11,294）/ 11% / 30% / 41% / 45%\n不含 CSG/CRDS（≈9.7%）、雇員社保（≈22%）',
+    tax(y){const d=Math.min(14171,Math.max(472,y*.1)),t=Math.max(0,y-d),b=[[11294,0],[17503,.11],[53544,.30],[94765,.41],[Infinity,.45]];let r=0,rem=t;for(const[l,p]of b){const c=Math.min(rem,l);r+=c*p;rem-=c;if(rem<=0)break;}return r;}}
+};
+
+// Goal mode scenarios
+let goalScenarios=[
+  {name:'公務員',    preset:true, segs:[{years:15,rate:3},{rate:1.5}]},
+  {name:'行政/服務', preset:true, segs:[{years:5, rate:4},{rate:2}]},
+  {name:'科技/工程', preset:true, segs:[{years:7, rate:10},{rate:4}]},
+  {name:'金融/顧問', preset:true, segs:[{years:5, rate:12},{rate:5}]},
+  {name:'醫師/律師', preset:true, segs:[{years:10,rate:15},{rate:6}]},
+];
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let mode='reality', housingMode='buy', country='tw';
+let growthMode='simple';
+let customPeriods=[{years:5,rate:8},{rate:3}];
+
+let S={
+  startAge:22, deathAge:85,
+  returnRate:5, inflation:2,
+  taxEnabled:true, emergencyMonths:6,
+  housePurchaseAge:30, housePrice:15000000, downPayment:30, mortgageRate:2.5, mortgageYears:30,
+  prePurchaseRent:12000,
+  monthlyRent:20000, rentIncrease:2,
+  replacementRate:80, targetRetireAge:55,
+  // daily expenses (reality mode only)
+  mealPerMeal:100, mealsPerDay:3,
+  weekendDailyBudget:600,
+};
+let R={startSalary:40000, gp1:8, gy1:5, gp2:3, avgGrowthRate:5};
+let detailCombo=null;
+let chartInst=null, detailChartInst=null;
+
+// ══════════════════════════════════════════════════════════════
+// DAILY EXPENSE HELPERS
+// ══════════════════════════════════════════════════════════════
+// Monthly meals: mealPerMeal × mealsPerDay × 30
+// Monthly entertainment: weekendDailyBudget × 8 (≈ 4 weekends × 2 days)
+function monthlyDailyExpenses(){
+  return S.mealPerMeal*S.mealsPerDay*30 + S.weekendDailyBudget*8;
+}
+function computedRetirementMonthly(){
+  return Math.round(monthlyDailyExpenses() * S.replacementRate / 100);
+}
+// shadow original so simulate picks it up via p.retirementMonthly
+function syncRetirementMonthly(){
+  const computed=computedRetirementMonthly();
+  const dailyFloor=monthlyDailyExpenses();
+  // Withdrawal must be >= daily expenses to maintain living standard
+  S.retirementMonthly = Math.max(computed, dailyFloor);
+}
+// ══════════════════════════════════════════════════════════════
+// FINANCE CORE
+// ══════════════════════════════════════════════════════════════
+function getSalRate(yw,segs){
+  let cum=0;
+  for(const s of segs){
+    if(s.years==null) return s.rate/100;
+    cum+=s.years; if(yw<=cum) return s.rate/100;
+  }
+  return segs[segs.length-1].rate/100;
+}
+function retCorpus(monthly,years,r,inf,extraAnnualNominal){
+  // PV of (inflation-adjusted living expenses + optional nominal extra costs like mortgage)
+  // extraAnnualNominal: array of length=years with nominal amounts per year (e.g. remaining mortgage)
+  const rr=(1+r)/(1+inf)-1; // real annual rate
+  const annualReal=monthly*12; // real (today's dollars) living cost per year
+  let pv=0;
+  for(let t=1;t<=years;t++){
+    // living cost in nominal at year t: annualReal * (1+inf)^t
+    // discount at nominal rate r: / (1+r)^t
+    // combined discount = 1/(1+rr)^t
+    const livingPV=annualReal/Math.pow(1+rr,t);
+    const extraPV=extraAnnualNominal&&extraAnnualNominal[t-1]
+      ? extraAnnualNominal[t-1]/Math.pow(1+r,t) : 0;
+    pv+=livingPV+extraPV;
+  }
+  return pv;
+}
+function buildMortgageExtra(fromAge,years,p,mMort,housing){
+  // Returns array[years] of nominal mortgage payments still owed after fromAge
+  if(housing!=='buy') return null;
+  const arr=[];
+  for(let t=1;t<=years;t++){
+    const age=fromAge+t;
+    const inMortgage=age>=p.housePurchaseAge&&age<p.housePurchaseAge+p.mortgageYears;
+    arr.push(inMortgage?mMort*12:0);
+  }
+  return arr.every(v=>v===0)?null:arr;
+}
+function simulate(startSal,segs,p,housing){
+  const r=p.returnRate/100,inf=p.inflation/100;
+  const loan=p.housePrice*(1-p.downPayment/100),mmr=(p.mortgageRate/100)/12,mn=p.mortgageYears*12;
+  const mMort=loan*mmr*Math.pow(1+mmr,mn)/(Math.pow(1+mmr,mn)-1);
+  const retMonthlyToday=p.retirementMonthly;
+
+  // ── PASS 1: accumulation only (no retirement) ──
+  // Build portfolio trajectory and per-year data through accumulation
+  let port=0,sal=startSal,efDone=false,curRent=p.monthlyRent;
+  let curDailyMonthly=p.mealPerMeal*p.mealsPerDay*30+p.weekendDailyBudget*8;
+  const accum=[]; // accumulation snapshots
+  let prevPort=0;
+  for(let age=p.startAge;age<=p.deathAge;age++){
+    const yw=age-p.startAge;
+    if(yw>0){sal*=(1+getSalRate(yw,segs));if(housing==='rent')curRent*=(1+p.rentIncrease/100);curDailyMonthly*=(1+inf);}
+    const annual=sal*12,tax=p.taxEnabled?CC[country].tax(annual):0,net=annual-tax;
+    const dailyAnnual=curDailyMonthly*12;
+    let oneTime=0;
+    if(!efDone&&p.emergencyMonths>0){oneTime+=(net/12)*p.emergencyMonths;efDone=true;}
+    if(housing==='buy'&&age===p.housePurchaseAge) oneTime+=p.housePrice*p.downPayment/100;
+    let hcost=0;
+    if(housing==='buy'&&age<p.housePurchaseAge) hcost=(p.prePurchaseRent||0)*12;
+    else if(housing==='buy'&&age>=p.housePurchaseAge&&age<p.housePurchaseAge+p.mortgageYears) hcost=mMort*12;
+    else if(housing==='rent') hcost=curRent*12;
+    const saved=net-hcost-dailyAnnual-oneTime;
+    port=port*(1+r)+saved;
+    const investRet=Math.round(prevPort*r);
+    accum.push({age,yw,port,sal,net,saved,hcost,dailyAnnual,oneTime,svr:net>0?saved/net:0,investRet});
+    prevPort=port;
+  }
+
+  // ── PASS 2: find earliest retAge where drawdown never fails ──
+  // A candidate retAge is valid only if port(retAge) >= retCorpus AND
+  // the full drawdown from that age keeps port >= corpus every year until deathAge
+  let retAge=null;
+  for(let ci=0;ci<accum.length;ci++){
+    const cand=accum[ci];
+    if(cand.age<35) continue;
+    const yrsLeft=p.deathAge-cand.age;
+    if(yrsLeft<=0) continue;
+    const candMortExtra=buildMortgageExtra(cand.age,yrsLeft,p,mMort,housing);
+    const corp=retCorpus(retMonthlyToday,yrsLeft,r,inf,candMortExtra);
+    if(cand.port<corp) continue; // not enough at this age
+    // Simulate drawdown in REAL terms from cand.age — consistent with retCorpus (real rate)
+    const rr=(1+r)/(1+inf)-1;
+    let dp_real=cand.port/Math.pow(1+inf,cand.yw); // convert to real (today's dollars)
+    let valid=true;
+    for(let fi=ci+1;fi<accum.length;fi++){
+      const fa=accum[fi];
+      const fyrsLeft=p.deathAge-fa.age;
+      // include mortgage in real terms if still in mortgage period
+      let fhcost_real=0;
+      if(housing==='buy'&&fa.age>=p.housePurchaseAge&&fa.age<p.housePurchaseAge+p.mortgageYears)
+        fhcost_real=mMort*12/Math.pow(1+inf,fa.yw);
+      else if(housing==='rent') fhcost_real=p.monthlyRent*12; // real rent (approx)
+      dp_real=dp_real*(1+rr)-retMonthlyToday*12-fhcost_real;
+      if(fyrsLeft>0){
+        const fmortExtra=buildMortgageExtra(fa.age,fyrsLeft,p,mMort,housing);
+        const fcorp=retCorpus(retMonthlyToday,fyrsLeft,r,inf,fmortExtra);
+        if(dp_real<fcorp){valid=false;break;}
+      }
+    }
+    if(valid){retAge=cand.age;break;}
+  }
+
+  // ── PASS 3: build final rows with correct retirement split ──
+  const rows=[];
+  let dp2=0;
+  // find port at retAge from accum
+  const retSnap=retAge?accum.find(a=>a.age===retAge):null;
+  if(retSnap) dp2=retSnap.port;
+
+  for(let i=0;i<accum.length;i++){
+    const a=accum[i];
+    if(!retAge||a.age<=retAge){
+      // accumulation row
+      const yrsLeft=p.deathAge-a.age;
+      const mortExtra=buildMortgageExtra(a.age,yrsLeft,p,mMort,housing);
+      const corp=yrsLeft>0?retCorpus(retMonthlyToday,yrsLeft,r,inf,mortExtra):0;
+      rows.push({age:a.age,port:Math.round(a.port),corpus:Math.round(corp),sal:Math.round(a.sal),
+                 net:Math.round(a.net),saved:Math.round(a.saved),hcost:Math.round(a.hcost),
+                 dailyAnnual:Math.round(a.dailyAnnual),oneTime:Math.round(a.oneTime),
+                 svr:Math.round(a.svr*100),investRet:a.investRet||0,retired:a.age===retAge});
+    } else {
+      // drawdown row
+      const yw=a.yw;
+      const dp2prev=dp2; // snapshot before this year's return
+      // Nominal withdrawal: real amount * inflation factor since startAge
+      const withdrawal=retMonthlyToday*12*Math.pow(1+inf,yw);
+      // Mortgage still applies if within mortgage period (fix 1)
+      let retHcost=0;
+      if(housing==='buy'&&a.age>=p.housePurchaseAge&&a.age<p.housePurchaseAge+p.mortgageYears) retHcost=mMort*12;
+      else if(housing==='rent') retHcost=a.hcost; // rent continues (already inflated in accum pass)
+      dp2=dp2*(1+r)-withdrawal-retHcost;
+      const yrsLeft=p.deathAge-a.age;
+      // Corpus in nominal terms: PV of future needs at this future point
+      const mortExtra2=buildMortgageExtra(a.age,yrsLeft,p,mMort,housing);
+      const corp=yrsLeft>0?retCorpus(retMonthlyToday,yrsLeft,r,inf,mortExtra2)*Math.pow(1+inf,yw):0;
+      const investRet2=Math.round(dp2prev*r);
+      rows.push({age:a.age,port:Math.round(dp2),corpus:Math.round(corp),sal:0,
+                 net:0,saved:Math.round(-withdrawal-retHcost),hcost:Math.round(retHcost),
+                 dailyAnnual:Math.round(a.dailyAnnual),oneTime:0,svr:0,investRet:investRet2,retired:true});
+    }
+  }
+  return{rows,retAge};
+}
+function getActiveSegs(){
+  if(growthMode==='simple') return [{years:R.gy1,rate:R.gp1},{rate:R.gp2}];
+  if(growthMode==='average') return [{rate:R.avgGrowthRate}];
+  return customPeriods;
+}
+
+// ══════════════════════════════════════════════════════════════
+// FORMATTERS
+// ══════════════════════════════════════════════════════════════
+function fmtAmt(n,showSign){
+  if(n==null) return '—';
+  const{cur}=CC[country],s=showSign&&n>0?'+':'',neg=n<0?'-':'';
+  const a=Math.abs(n);
+  if(country==='tw'){
+    if(a>=1e8) return`${s}${neg}${(a/1e8).toFixed(1)}億`;
+    if(a>=1e4){const v=a/1e4;return`${s}${neg}${v%1===0?Math.round(v):v.toFixed(1)}萬`;}
+    return`${s}${neg}${Math.round(a)}`;
+  }
+  if(country==='jp'){
+    if(a>=1e8) return`${s}${neg}${cur}${(a/1e8).toFixed(1)}億`;
+    if(a>=1e4){const v=a/1e4;return`${s}${neg}${cur}${v%1===0?Math.round(v):v.toFixed(1)}万`;}
+    return`${s}${neg}${cur}${Math.round(a)}`;
+  }
+  if(a>=1e6) return`${s}${neg}${cur}${(a/1e6).toFixed(1)}M`;
+  if(a>=1000) return`${s}${neg}${cur}${Math.round(a/1000)}K`;
+  return`${s}${neg}${cur}${Math.round(a).toLocaleString()}`;
+}
+function fmtMon(n){return fmtAmt(n);}
+function retColor(a){return!a?'#E24B4A':a<=55?'#3B6D11':a<=62?'#BA7517':'#E24B4A';}
+function goalStyle(retAge,target){
+  if(!retAge) return{bg:'#fce8e8',c:'#a32d2d',txt:'無法達成'};
+  const d=retAge-target;
+  if(d<=0) return{bg:'#eaf3de',c:'#2a5a0a',txt:`${retAge}歲 ✓`};
+  if(d<=3) return{bg:'#fff3da',c:'#854F0B',txt:`${retAge}歲 △`};
+  return{bg:'#fce8e8',c:'#a32d2d',txt:`${retAge}歲 ✗`};
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════════════════════════
+const tipBox=document.getElementById('tip-box');
+function showTip(el,e){tipBox.innerHTML=el.dataset.tip.replace(/\n/g,'<br>');tipBox.style.display='block';moveTip(e);}
+function moveTip(e){const x=Math.min(e.clientX+14,window.innerWidth-295),y=Math.min(e.clientY-8,window.innerHeight-120);tipBox.style.left=x+'px';tipBox.style.top=y+'px';}
+function hideTip(){tipBox.style.display='none';}
+document.addEventListener('mousemove',e=>{if(tipBox.style.display==='block')moveTip(e);});
+
+// ══════════════════════════════════════════════════════════════
+// SIDEBAR HELPERS
+// ══════════════════════════════════════════════════════════════
+function nF(label,key,obj,min,max,step,suf){
+  return`<div class="field"><label>${label}</label><div class="field-row">
+    <input type="number" id="f_${key}" value="${obj[key]}" min="${min}" max="${max}" step="${step||1}"
+      oninput="onNumInput('${key}',this.value,'${obj===R?'R':'S'}')">
+    ${suf?`<span>${suf}</span>`:''}
+  </div></div>`;
+}
+function togF(label,key){
+  return`<div class="tog-row"><span>${label}</span><div class="tog${S[key]?' on':''}" onclick="toggleKey('${key}')"></div></div>`;
+}
+function nfo(tip){
+  return`<i class="info-icon" data-tip="${tip}" onmouseenter="showTip(this,event)" onmouseleave="hideTip()">i</i>`;
+}
+function bigHdr(label,cls,icon=''){
+  return`<div class="big-hdr ${cls}">${icon} ${label}</div>`;
+}
+function segSegsLabel(segs){
+  return segs.map(s=>s.years?`前${s.years}年 ${s.rate}%`:`後期 ${s.rate}%`).join(' → ');
+}
+
+// ══════════════════════════════════════════════════════════════
+// SIDEBAR RENDER
+// ══════════════════════════════════════════════════════════════
+function renderSidebar(){
+  const cc=CC[country];
+  let h=`<h1>個人理財試算 <i class="info-icon" data-tip="本模型的限制與假設\n\n👤 個人模型\n僅模擬單人財務，若有另一半則雙薪、共同開支、\n育兒費用等均未納入計算\n\n📈 線性薪資成長\n不考慮主動轉職、創業、進修（如 MBA）\n或裁員、空窗期等非線性事件\n\n💊 醫療與意外\n未納入重大疾病、意外傷殘、長照費用\n\n🏠 房屋增值\n房屋視為消費性資產，不計入資產增值\n\n📊 固定報酬率\n投資報酬假設為固定年化，未考慮市場波動、\n景氣循環或通膨衝擊\n\n🧾 稅務簡化\n僅計算薪資所得稅，未納入股利稅、\n房地合一稅、遺產稅等" onmouseenter="showTip(this,event)" onmouseleave="hideTip()">i</i></h1><div class="subtitle">薪資成長 · 退休規劃 · 資產累積</div>`;
+
+  // Mode tabs
+  h+=`<div style="display:flex;margin-bottom:12px;">
+    <button onclick="setMode('reality')" style="flex:1;padding:6px 3px;border:1px solid #ddd;background:${mode==='reality'?'#e8f0fb':'transparent'};color:${mode==='reality'?'#185FA5':'#888'};border-radius:8px 0 0 8px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:${mode==='reality'?500:400};">現實模式</button>
+    <button onclick="setMode('goal')" style="flex:1;padding:6px 3px;border:1px solid #ddd;background:${mode==='goal'?'#e8f0fb':'transparent'};color:${mode==='goal'?'#185FA5':'#888'};border-radius:0 8px 8px 0;font-family:inherit;font-size:12px;cursor:pointer;font-weight:${mode==='goal'?500:400};">目標模式</button>
+  </div>`;
+
+  // ── 基本設定 ──
+  h+=bigHdr('基本設定','base','⚙');
+  h+=`<div class="sec-title">生命周期</div>`;
+  h+=nF('開始工作年齡','startAge',S,18,30,1,'歲');
+  h+=nF('預計壽命','deathAge',S,65,100,1,'歲');
+  h+=nF('緊急預備金','emergencyMonths',S,0,24,1,'個月薪水');
+  h+=`<div class="sec-title">退休現金流</div>`;
+  if(mode==='goal'){
+    h+=nF('目標退休年齡','targetRetireAge',S,35,70,1,'歲');
+  }
+  const retMonthly=computedRetirementMonthly();
+  h+=`<div class="field"><label>退休替代率 ${nfo('退休替代率說明\n\n退休月支出 = 當前日常月開銷 × 替代率\n\n預設 80%：退休後不需通勤、治裝、提撥退休金，\n但醫療與休閒支出可能增加，業界通常估 70–90%\n\n此數字用今日幣值計算，通膨調整由 retCorpus 自動處理')}</label>
+    <div class="field-row">
+      <input type="range" id="f_replacementRate" value="${S.replacementRate}" min="50" max="100" step="5"
+        style="flex:1;accent-color:#185FA5" oninput="S.replacementRate=+this.value;document.getElementById('rr_disp').textContent=this.value+'%';onNumInput('replacementRate',this.value,'S');">
+      <span id="rr_disp" style="min-width:36px;text-align:right;font-family:monospace">${S.replacementRate}%</span>
+    </div>
+  </div>`;
+  h+=`<div class="tax-badge" style="border-color:#b3cef0;color:#185FA5" id="sd_ret_badge">
+    推算退休月支出：<b style="color:#185FA5">${fmtAmt(retMonthly)}</b> / 月<br>
+    <span style="color:#888">（今日幣值，= 日常月支出 ${fmtAmt(monthlyDailyExpenses())} × ${S.replacementRate}%）</span>
+  </div>`;
+
+  // ═══════════════════════════════════════
+  // 收入 BIG HEADER
+  // ═══════════════════════════════════════
+  h+=bigHdr('收入','income','💰');
+
+  // 投資
+  h+=`<div class="sec-title">① 投資收益設定</div>`;
+  h+=nF('年投資報酬率','returnRate',S,0,20,.5,'%');
+
+  // 薪資成長設定
+  if(mode==='reality'){
+    const growthTip='薪資成長設定說明\n\n簡易：初期高速成長 N 年，之後切換穩定成長率\n客製化時段：自由設定任意個時段，各填年數與年成長率，最後一段自動延伸至壽命\n全期平均：整個職涯套用單一平均年成長率';
+    h+=`<div class="sec-title">② 月薪與薪資成長 ${nfo(growthTip)}</div>`;
+    h+=nF('畢業起薪（月薪）','startSalary',R,cc.def.salStep,cc.def.sal*10,cc.def.salStep,cc.cur);
+    h+=`<div class="seg">
+      <button class="${growthMode==='simple'?'on':''}" onclick="setGrowthMode('simple')">簡易</button>
+      <button class="${growthMode==='custom'?'on':''}" onclick="setGrowthMode('custom')">客製化</button>
+      <button class="${growthMode==='average'?'on':''}" onclick="setGrowthMode('average')">全期平均</button>
+    </div>`;
+    if(growthMode==='simple'){
+      const e1=S.startAge+R.gy1-1;
+      const tipEarly=`初期：第 1 年到第 ${R.gy1} 年（${S.startAge}–${e1} 歲）\n年薪每年成長 ${R.gp1}%`;
+      const tipLate=`後期：第 ${R.gy1+1} 年起（${e1+1} 歲起）\n年薪每年成長 ${R.gp2}%`;
+      h+=`<span id="sd_period_hint" style="display:none"></span>`;
+      h+=nF(`初期成長率 ${nfo(tipEarly)}`,'gp1',R,0,30,.5,'%');
+      h+=nF('初期成長年數','gy1',R,1,20,1,'年');
+      h+=nF(`後期成長率 ${nfo(tipLate)}`,'gp2',R,0,15,.5,'%');
+    } else if(growthMode==='average'){
+      h+=nF('全期平均年成長率','avgGrowthRate',R,0,25,.5,'%');
+    } else {
+      customPeriods.forEach((p,i)=>{
+        const isLast=i===customPeriods.length-1;
+        h+=`<div class="period-row"><span class="p-tag">第${i+1}段</span>`;
+        if(!isLast) h+=`<input type="number" value="${p.years}" min="1" max="50" onchange="setPYears(${i},+this.value)"><span style="font-size:11px;color:#888">年，</span>`;
+        else h+=`<span style="font-size:11px;color:#888;flex:1">至壽命，</span>`;
+        h+=`<input type="number" value="${p.rate}" min="0" max="50" step=".5" onchange="setPRate(${i},+this.value)"><span>%</span>`;
+        if(customPeriods.length>1) h+=`<button class="p-rm" onclick="removePeriod(${i})">×</button>`;
+        h+=`</div>`;
+      });
+      h+=`<button class="p-add" onclick="addPeriod()">＋ 新增時間段</button>`;
+    }
+  } else {
+    // Goal mode: scenario editor
+    const scenTip='職涯情境說明\n\n矩陣每欄對應一個薪資成長情境。\n預設為常見職涯，可新增自訂情境並設定各時段成長率。';
+    h+=`<div class="sec-title">矩陣情境設定 ${nfo(scenTip)}</div>`;
+    goalScenarios.forEach((sc,si)=>{
+      h+=`<div class="scenario-block">
+        <div class="scen-hdr">
+          ${sc.preset?`<span class="preset-tag">預設</span>`:''}
+          <input class="scen-name" value="${sc.name}" onchange="setScenName(${si},this.value)">
+          ${!sc.preset?`<button class="scen-rm" onclick="removeScen(${si})">×</button>`:''}
+        </div>`;
+      sc.segs.forEach((seg,pi)=>{
+        const isLast=pi===sc.segs.length-1;
+        h+=`<div class="period-row"><span class="p-tag">第${pi+1}段</span>`;
+        if(!isLast) h+=`<input type="number" value="${seg.years}" min="1" max="50" onchange="setScenSegYears(${si},${pi},+this.value)"><span style="font-size:11px;color:#888">年，</span>`;
+        else h+=`<span style="font-size:11px;color:#888;flex:1">至壽命，</span>`;
+        h+=`<input type="number" value="${seg.rate}" min="0" max="50" step=".5" onchange="setScenSegRate(${si},${pi},+this.value)"><span>%</span>`;
+        if(sc.segs.length>1) h+=`<button class="p-rm" onclick="removeScenSeg(${si},${pi})">×</button>`;
+        h+=`</div>`;
+      });
+      h+=`<button class="p-add" onclick="addScenSeg(${si})">＋ 新增時段</button></div>`;
+    });
+    h+=`<button class="scen-add" onclick="addScen()">＋ 新增自訂情境</button>`;
+  }
+
+  // ═══════════════════════════════════════
+  // 成本 BIG HEADER
+  // ═══════════════════════════════════════
+  h+=bigHdr('支出','cost','💸');
+
+  // 國家與稅務（moved to 收入, under 薪資）
+  h+=`<div class="sec-title">③ 稅後年收（稅務設定）</div>`;
+  h+=`<div class="field"><div class="field-row"><select id="f_country" onchange="setCountry(this.value)">`;
+  Object.entries(CC).forEach(([k,v])=>{h+=`<option value="${k}"${k===country?' selected':''}>${v.name}</option>`;});
+  h+=`</select></div></div>`;
+  h+=togF(`計算所得稅 ${nfo(cc.taxNote)}`,'taxEnabled');
+
+  // 住屋成本
+  const hmodes=mode==='reality'?[['buy','買房'],['rent','租房'],['compare','兩者比較']]:[['buy','買房'],['rent','租房']];
+  h+=`<div class="sec-title">④ 住屋/年（住屋成本）</div>`;
+  h+=`<div class="seg">${hmodes.map(([v,l])=>`<button class="${housingMode===v?'on':''}" onclick="setHousing('${v}')">${l}</button>`).join('')}</div>`;
+  if(housingMode==='buy'||housingMode==='compare'){
+    if(housingMode==='compare') h+=`<div class="sub-label">買房參數</div>`;
+    h+=nF('購屋年齡','housePurchaseAge',S,25,55,1,'歲');
+    h+=nF('購屋前月租','prePurchaseRent',S,0,cc.def.rent*4,cc.def.salStep,cc.cur);
+    h+=nF('房屋總價','housePrice',S,cc.def.houseStep,cc.def.house*8,cc.def.houseStep,cc.cur);
+    h+=nF('頭期款比例','downPayment',S,10,50,1,'%');
+    h+=nF('房貸利率','mortgageRate',S,1,8,.1,'%');
+    h+=nF('房貸年限','mortgageYears',S,10,40,1,'年');
+    // Live housing cost breakdown
+    {
+      const loan=S.housePrice*(1-S.downPayment/100);
+      const mmr=(S.mortgageRate/100)/12,mn=S.mortgageYears*12;
+      const mMort=mn>0?loan*mmr*Math.pow(1+mmr,mn)/(Math.pow(1+mmr,mn)-1):0;
+      const downAmt=S.housePrice*S.downPayment/100;
+      const annualPre=(S.prePurchaseRent||0)*12;
+      const annualMort=Math.round(mMort*12);
+      h+=`<div class="cost-summary" style="margin-top:6px;line-height:1.9">
+        <b>住屋成本試算</b><br>
+        <span style="color:#888;font-size:9.5px">── 購屋前（${S.startAge}–${S.housePurchaseAge-1} 歲）──</span><br>
+        每月租金 ${fmtAmt(S.prePurchaseRent)}　→　<b>年繳 ${fmtAmt(annualPre)}</b><br>
+        <span style="color:#888;font-size:9.5px">── 購屋時（${S.housePurchaseAge} 歲，一次性）──</span><br>
+        頭期款 = 總價 ${fmtAmt(S.housePrice)} × ${S.downPayment}%　→　<b>${fmtAmt(downAmt)}</b><br>
+        <span style="color:#888;font-size:9.5px">── 房貸期間（${S.housePurchaseAge}–${S.housePurchaseAge+S.mortgageYears-1} 歲）──</span><br>
+        貸款金額 = ${fmtAmt(S.housePrice)} × ${100-S.downPayment}%　→　${fmtAmt(loan)}<br>
+        月利率 = ${S.mortgageRate}% ÷ 12　→　${(S.mortgageRate/12).toFixed(4)}%<br>
+        期數 = ${S.mortgageYears} 年 × 12　→　${mn} 期<br>
+        月房貸 = 貸款 × 月利率 × (1+月利率)^期數 ÷ [(1+月利率)^期數 − 1]<br>
+        　　　= <b>${fmtAmt(Math.round(mMort))}/月　→　年繳 ${fmtAmt(annualMort)}</b>
+      </div>`;
+    }
+  }
+  if(housingMode==='rent'||housingMode==='compare'){
+    if(housingMode==='compare') h+=`<div class="sub-label" style="margin-top:8px">租房參數</div>`;
+    h+=nF('每月租金','monthlyRent',S,cc.def.salStep,cc.def.rent*8,cc.def.salStep,cc.cur);
+    h+=nF('年租金漲幅','rentIncrease',S,0,10,.5,'%');
+    if(housingMode!=='compare'){
+      h+=`<div class="cost-summary" style="margin-top:6px">
+        <b>住屋成本試算</b><br>
+        年租金：<b>${fmtAmt(S.monthlyRent*12)}</b>（月租 ${fmtAmt(S.monthlyRent)} × 12）<br>
+        每年漲 ${S.rentIncrease}%，${10} 年後月租約 ${fmtAmt(Math.round(S.monthlyRent*Math.pow(1+S.rentIncrease/100,10)))}
+      </div>`;
+    }
+  }
+
+  // 日常開銷（兩個模式都顯示）
+  {
+    const dailyTip='日常開銷計算方式\n\n餐費：每餐預算 × 每天幾餐 × 30 天\n娛樂：六日預算 × 8 天（約每月4個週末）\n\n餐費與娛樂直接列入支出計算，儲蓄率由實際收支自動算出\n\n預設值依所選國家/城市的一般生活水準估算';
+    const mealMonthly=S.mealPerMeal*S.mealsPerDay*30;
+    const entMonthly=S.weekendDailyBudget*8;
+    const totalMonthly=mealMonthly+entMonthly;
+    h+=`<div class="sec-title">⑤ 日常/年 ${nfo(dailyTip)}</div>`;
+    h+=nF('通貨膨脹率（日常成長）','inflation',S,0,10,.5,'%');
+    h+=`<div class="sub-label">餐費</div>`;
+    h+=`<div style="border-top:1px solid #ececec;margin:4px 0 7px"></div>`;
+    h+=nF('每餐預算','mealPerMeal',S,1,cc.def.mealPerMeal*10,cc.def.mealPerMeal<=20?1:50,cc.cur);
+    h+=nF('每天幾餐','mealsPerDay',S,1,6,1,'餐');
+    h+=`<div class="sub-label">娛樂（六日出遊）</div>`;
+    h+=`<div style="border-top:1px solid #ececec;margin:4px 0 7px"></div>`;
+    h+=nF('每日預算（六日）','weekendDailyBudget',S,0,cc.def.weekendDaily*10,cc.def.weekendDaily<=100?10:500,cc.cur);
+    h+=`<div class="cost-summary" id="sd_cost_summary" style="margin-top:6px">
+      餐費：${fmtAmt(mealMonthly)}/月　娛樂：${fmtAmt(entMonthly)}/月<br>
+      <b>合計：${fmtAmt(totalMonthly)}/月（${fmtAmt(totalMonthly*12)}/年）</b>
+    </div>`;
+  }
+
+  // ── 參數補充說明 ──
+  h+=bigHdr('參數補充說明','base','📐');
+
+  // 1. 累積資產
+  {
+    h+=`<div class="sec-title">累積資產計算方式</div>`;
+    h+=`<div class="cost-summary">
+      每年公式：<br>
+      <b>本年資產 = 上年資產 × (1 + ${S.returnRate}%) + 年儲蓄</b><br><br>
+      年儲蓄 = 稅後收入 − 住屋成本 − 日常開銷 − 一次性支出<br><br>
+      <b>累積資產不含房屋價值：</b><br>
+      頭期款 → 一次性現金扣除<br>
+      房貸月供 → 每年固定現金扣除<br>
+      房屋增值 → 不計入（視同自用不動產）<br><br>
+      累積資產僅代表可變現的金融資產（現金、股票、基金等）
+    </div>`;
+  }
+
+  // 2. 所需金額
+  {
+    const rm=S.retirementMonthly;
+    const rr_real=((1+S.returnRate/100)/(1+S.inflation/100)-1);
+    const yrsEx=S.deathAge-(mode==='goal'?S.targetRetireAge:55);
+    const exCorpus=retCorpus(rm,yrsEx,S.returnRate/100,S.inflation/100);
+    h+=`<div class="sec-title">所需金額計算</div>`;
+    h+=`<div class="cost-summary">
+      所需金額 = 從退休當年到壽命終點，每年提領金額的現值加總<br><br>
+      逐年提領（名目）= 退休月支出 × 12 × (1＋通膨)^t<br>
+      折現回今天 = ÷ (1＋報酬率)^t<br>
+      等同於以<b>實質利率</b>折現的年金現值<br><br>
+      <b>實質利率</b> = (1＋${S.returnRate}%) ÷ (1＋${S.inflation}%) − 1 ≈ <b>${(rr_real*100).toFixed(2)}%</b><br>
+      <b>退休月支出</b>（今日幣值）= <b>${fmtAmt(rm)}</b><br><br>
+      若退休時仍有未還完的房貸，對應年份的月供也計入所需金額。<br><br>
+      ※ 所需金額每年按剩餘存活年數自動重算，退休後逐年下降。
+    </div>`;
+  }
+
+  // 3. 狀態欄說明
+  {
+    h+=`<div class="sec-title">狀態欄說明</div>`;
+    h+=`<div class="cost-summary">
+      <span style="display:inline-block;background:#fce8e8;color:#993C1D;padding:1px 8px;border-radius:4px;font-size:11px;margin-bottom:4px">待累積</span><br>
+      資產 &lt; 所需金額，尚未達到退休門檻<br><br>
+      <span style="display:inline-block;background:#e8f0fb;color:#185FA5;padding:1px 8px;border-radius:4px;font-size:11px;margin-bottom:4px">資產充足</span><br>
+      資產已 ≥ 所需金額，但模擬顯示此時若退休，未來某年資產會耗盡，仍需繼續累積緩衝<br><br>
+      <span style="display:inline-block;background:#eaf3de;color:#3B6D11;padding:1px 8px;border-radius:4px;font-size:11px;margin-bottom:4px">可退休（今年）</span><br>
+      最早可以退休的年齡：從此年起至壽命終點，每年資產均 ≥ 所需金額<br><br>
+      <span style="display:inline-block;background:#eaf3de;color:#3B6D11;padding:1px 8px;border-radius:4px;font-size:11px;margin-bottom:4px">已退休</span><br>
+      進入提領階段，不再有薪資收入，資產靠投資報酬支撐並逐年提領
+    </div>`;
+  }
+
+  document.getElementById('sidebar').innerHTML=h;
+  bindInputs();
+}
+
+function bindInputs(){
+  ['startAge','deathAge','returnRate','inflation','emergencyMonths',
+   'housePurchaseAge','housePrice','downPayment','mortgageRate','mortgageYears',
+   'monthlyRent','rentIncrease','targetRetireAge','prePurchaseRent',
+   'mealPerMeal','mealsPerDay','weekendDailyBudget'].forEach(k=>{
+    const el=document.getElementById('f_'+k);
+    if(el) el.oninput=()=>{S[k]=+el.value;renderAll();};
+  });
+  ['startSalary','gp1','gy1','gp2','avgGrowthRate'].forEach(k=>{
+    const el=document.getElementById('f_'+k);
+    if(el) el.oninput=()=>{R[k]=+el.value;renderAll();};
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// EVENTS
+// ══════════════════════════════════════════════════════════════
+function setMode(m){mode=m;detailCombo=null;renderAll();}
+function setHousing(h){housingMode=h;renderAll();}
+function toggleKey(k){S[k]=!S[k];renderAll();}
+function setGrowthMode(m){growthMode=m;renderAll();}
+function setCountry(c){
+  country=c;const d=CC[c].def;
+  S.retirementMonthly=d.ret;S.housePrice=d.house;S.monthlyRent=d.rent;R.startSalary=d.sal;
+  S.mealPerMeal=d.mealPerMeal;S.mealsPerDay=d.mealsPerDay;S.weekendDailyBudget=d.weekendDaily;
+  S.prePurchaseRent=Math.round(d.rent*0.6);
+  renderAll();
+}
+function addPeriod(){const last=customPeriods.pop();customPeriods.push({years:5,rate:5},last);renderAll();}
+function removePeriod(i){if(customPeriods.length<=1)return;customPeriods.splice(i,1);renderAll();}
+function setPYears(i,v){customPeriods[i].years=v;renderMain();}
+function setPRate(i,v){customPeriods[i].rate=v;renderMain();}
+function addScen(){goalScenarios.push({name:'自訂情境',preset:false,segs:[{years:5,rate:8},{rate:3}]});renderAll();}
+function removeScen(i){goalScenarios.splice(i,1);renderAll();}
+function setScenName(i,v){goalScenarios[i].name=v;}
+function addScenSeg(i){const sc=goalScenarios[i],last=sc.segs.pop();sc.segs.push({years:5,rate:5},last);renderAll();}
+function removeScenSeg(i,pi){const sc=goalScenarios[i];if(sc.segs.length<=1)return;sc.segs.splice(pi,1);renderAll();}
+function setScenSegYears(i,pi,v){goalScenarios[i].segs[pi].years=v;renderMain();}
+function setScenSegRate(i,pi,v){goalScenarios[i].segs[pi].rate=v;renderMain();}
+function pickCombo(sal,si){detailCombo=detailCombo&&detailCombo.sal===sal&&detailCombo.si===si?null:{sal,si};renderMain();}
+
+// ══════════════════════════════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════════════════════════════
+function buildChart(id,rows,retAge,h){
+  if(!document.getElementById(id)) return null;
+  const inst=new Chart(document.getElementById(id).getContext('2d'),{
+    type:'line',
+    data:{labels:rows.map(r=>r.age),datasets:[
+      {label:'累積資產',data:rows.map(r=>r.port),borderColor:'#BA7517',backgroundColor:'rgba(186,117,23,.12)',fill:true,tension:.4,pointRadius:0,borderWidth:2},
+      {label:'退休所需',data:rows.map(r=>r.corpus),borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,.08)',fill:true,tension:.4,pointRadius:0,borderWidth:2}
+    ]},
+    options:{responsive:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}：${fmtAmt(c.raw)}`}}},
+      scales:{x:{grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#888',font:{size:10}}},
+              y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#888',font:{size:10},callback:v=>fmtAmt(v)}}}},
+    plugins:[{id:'vl'+id,afterDraw(chart){
+      if(!retAge)return;
+      const idx=chart.data.labels.indexOf(retAge);if(idx<0)return;
+      const x=chart.scales.x.getPixelForValue(idx),c=chart.ctx;
+      c.save();c.strokeStyle='#3B6D11';c.lineWidth=1.5;c.setLineDash([4,4]);
+      c.beginPath();c.moveTo(x,chart.chartArea.top);c.lineTo(x,chart.chartArea.bottom);c.stroke();
+      c.setLineDash([]);c.fillStyle='#3B6D11';c.font='11px system-ui';
+      c.fillText(`退休 ${retAge}歲`,x+4,chart.chartArea.top+14);c.restore();
+    }}]
+  });
+  const canvas=document.getElementById(id),w=canvas.parentElement.clientWidth-28;
+  canvas.style.width=w+'px';inst.resize(w,h);return inst;
+}
+function buildCmpChart(id,rb,rr,h){
+  if(!document.getElementById(id)) return null;
+  const inst=new Chart(document.getElementById(id).getContext('2d'),{
+    type:'line',
+    data:{labels:rb.map(r=>r.age),datasets:[
+      {label:'買房－資產',data:rb.map(r=>r.port),borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,.07)',fill:true,tension:.4,pointRadius:0,borderWidth:2},
+      {label:'租房－資產',data:rr.map(r=>r.port),borderColor:'#BA7517',backgroundColor:'rgba(186,117,23,.07)',fill:true,tension:.4,pointRadius:0,borderWidth:2,borderDash:[5,3]},
+      {label:'退休所需',data:rb.map(r=>r.corpus),borderColor:'#bbb',fill:false,tension:.4,pointRadius:0,borderWidth:1.5,borderDash:[3,3]}
+    ]},
+    options:{responsive:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}：${fmtAmt(c.raw)}`}}},
+      scales:{x:{grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#888',font:{size:10}}},
+              y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#888',font:{size:10},callback:v=>fmtAmt(v)}}}}
+  });
+  const canvas=document.getElementById(id),w=canvas.parentElement.clientWidth-28;
+  canvas.style.width=w+'px';inst.resize(w,h);return inst;
+}
+
+// ══════════════════════════════════════════════════════════════
+// SHARED TABLE
+// ══════════════════════════════════════════════════════════════
+function tableHTML(rows,retAge){
+  let h=`<div class="tbl-wrap"><div class="tbl-hdr">逐年現金流</div>
+    <table><thead><tr>
+      <th>年齡</th><th style="color:#2a7a2a">①投資收益</th><th style="color:#2a7a2a">②月薪</th><th style="color:#2a7a2a">③稅後年收</th><th style="color:#b84040">④住屋/年</th><th style="color:#b84040">⑤日常/年</th><th style="color:#b84040">緊急預備金</th>
+      <th>年儲蓄</th><th>儲蓄率</th><th>累積資產</th><th>所需金額</th><th>狀態</th>
+    </tr></thead><tbody>`;
+  rows.forEach(row=>{
+    const ok=row.port>=row.corpus;
+    const rowBg=row.age===retAge?'background:#eaf3de':row.retired?'background:#f5f4f0':'';
+    h+=`<tr style="${rowBg}">
+      <td style="font-family:monospace;font-weight:${row.age===retAge?600:400}">${row.age}</td>
+      <td style="font-family:monospace;color:#185FA5">${row.investRet>0?'+'+fmtAmt(row.investRet):'—'}</td>
+      <td style="font-family:monospace;color:${row.retired?'#bbb':'#BA7517'}">${row.retired?'已退休':fmtMon(row.sal)}</td>
+      <td style="font-family:monospace;color:${row.retired?'#bbb':''}">${row.retired?'—':fmtAmt(row.net)}</td>
+      <td style="font-family:monospace;color:#666">${row.hcost>0?fmtAmt(row.hcost):'—'}</td>
+      <td style="font-family:monospace;color:#993C1D">${fmtAmt(row.dailyAnnual)}</td>
+      <td style="font-family:monospace;color:#666">${row.oneTime>0?fmtAmt(row.oneTime,false):'—'}</td>
+      <td style="font-family:monospace;color:${row.saved>=0?'#3B6D11':'#E24B4A'}">${row.retired?fmtAmt(row.saved,false)+'（提領）':fmtAmt(row.saved,true)}</td>
+      <td style="font-family:monospace;color:${row.retired?'#bbb':row.svr>=0?'#3B6D11':'#993C1D'}">${row.retired?'—':row.svr+'%'}</td>
+      <td style="font-family:monospace;color:${row.port<0?'#E24B4A':''}">${fmtAmt(row.port)}</td>
+      <td style="font-family:monospace;color:#185FA5">${fmtAmt(row.corpus)}</td>
+      <td><span class="badge ${row.retired?'ok':row.age===retAge?'ok':ok&&row.age<retAge?'warn':'ng'}">${row.retired?'已退休':row.age===retAge?'可退休（今年）':ok&&row.age<retAge?'資產充足':'待累積'}</span></td>
+    </tr>`;
+  });
+  return h+`</tbody></table></div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// REALITY MODE
+// ══════════════════════════════════════════════════════════════
+function renderReality(){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  if(detailChartInst){detailChartInst.destroy();detailChartInst=null;}
+  const segs=getActiveSegs();
+  const daily=monthlyDailyExpenses();
+
+  if(housingMode==='compare'){
+    const buy=simulate(R.startSalary,segs,S,'buy');
+    const rent=simulate(R.startSalary,segs,S,'rent');
+    const rb45=buy.rows.find(r=>r.age===45),rr45=rent.rows.find(r=>r.age===45);
+    const rbRet=buy.rows.find(r=>r.age===buy.retAge),rrRet=rent.rows.find(r=>r.age===rent.retAge);
+    const loan=S.housePrice*(1-S.downPayment/100),mmr2=(S.mortgageRate/100)/12,mn2=S.mortgageYears*12;
+    const mMort2=loan*mmr2*Math.pow(1+mmr2,mn2)/(Math.pow(1+mmr2,mn2)-1);
+    let h=`<div class="cmp-wrap">
+      <div class="cmp-card" style="border-color:#b3cef0">
+        <div class="cmp-title" style="color:#185FA5">買房情境</div>
+        <div class="cmp-row"><span class="cmp-key">退休年齡</span><span class="cmp-val" style="color:${retColor(buy.retAge)}">${buy.retAge?buy.retAge+'歲':'75歲前不足'}</span></div>
+        <div class="cmp-row"><span class="cmp-key">退休時資產</span><span class="cmp-val">${rbRet?fmtAmt(rbRet.port):'—'}</span></div>
+        <div class="cmp-row"><span class="cmp-key">45歲月薪</span><span class="cmp-val">${fmtMon(rb45?.sal)}</span></div>
+        <div class="cmp-row"><span class="cmp-key">月房貸</span><span class="cmp-val">${fmtAmt(mMort2)}</span></div>
+        <div class="cmp-row"><span class="cmp-key">日常月開銷</span><span class="cmp-val" style="color:#993C1D">${fmtAmt(daily)}</span></div>
+      </div>
+      <div class="cmp-card" style="border-color:#f5c475">
+        <div class="cmp-title" style="color:#BA7517">租房情境</div>
+        <div class="cmp-row"><span class="cmp-key">退休年齡</span><span class="cmp-val" style="color:${retColor(rent.retAge)}">${rent.retAge?rent.retAge+'歲':'75歲前不足'}</span></div>
+        <div class="cmp-row"><span class="cmp-key">退休時資產</span><span class="cmp-val">${rrRet?fmtAmt(rrRet.port):'—'}</span></div>
+        <div class="cmp-row"><span class="cmp-key">45歲月薪</span><span class="cmp-val">${fmtMon(rr45?.sal)}</span></div>
+        <div class="cmp-row"><span class="cmp-key">起始月租</span><span class="cmp-val">${fmtAmt(S.monthlyRent)}</span></div>
+        <div class="cmp-row"><span class="cmp-key">日常月開銷</span><span class="cmp-val" style="color:#993C1D">${fmtAmt(daily)}</span></div>
+      </div>
+    </div>`;
+    h+=`<div class="chart-wrap"><div class="chart-legend">
+        <span><span class="leg-dot" style="background:#185FA5"></span>買房－資產</span>
+        <span><span class="leg-dot" style="background:#BA7517"></span>租房－資產（虛線）</span>
+        <span><span class="leg-dot" style="background:#bbb"></span>退休所需</span>
+      </div><canvas id="cmpChart" style="width:100%;height:250px;"></canvas></div>`;
+    h+=`<div class="tbl-wrap"><div class="tbl-hdr">逐年比較</div><table>
+      <thead><tr><th>年齡</th><th style="color:#185FA5">買房資產</th><th>住屋支出</th>
+      <th style="color:#BA7517">租房資產</th><th>住屋支出</th><th>差額（買－租）</th></tr></thead><tbody>`;
+    buy.rows.forEach(rb=>{
+      const rr=rent.rows.find(r=>r.age===rb.age);if(!rr)return;
+      const diff=rb.port-rr.port;
+      h+=`<tr><td style="font-family:monospace">${rb.age}</td>
+        <td style="font-family:monospace;color:#185FA5">${fmtAmt(rb.port)}</td>
+        <td style="font-family:monospace">${rb.hcost>0?fmtAmt(rb.hcost):'—'}</td>
+        <td style="font-family:monospace;color:#BA7517">${fmtAmt(rr.port)}</td>
+        <td style="font-family:monospace">${fmtAmt(rr.hcost)}</td>
+        <td style="font-family:monospace;color:${diff>=0?'#185FA5':'#BA7517'}">${fmtAmt(diff,true)}</td>
+      </tr>`;
+    });
+    h+=`</tbody></table></div>`;
+    document.getElementById('main').innerHTML=h;
+    chartInst=buildCmpChart('cmpChart',buy.rows,rent.rows,250);
+  } else {
+    const housing=housingMode==='rent'?'rent':'buy';
+    const{rows,retAge}=simulate(R.startSalary,segs,S,housing);
+    const retRow=rows.find(r=>r.age===retAge),row45=rows.find(r=>r.age===45);
+
+    const row22=rows[0];
+    const initSvr=row22?row22.svr:0;
+    let h=`<div class="cards cards-3">
+      <div class="card"><div class="card-label">推算退休年齡</div>
+        <div class="card-val" style="color:${retColor(retAge)}">${retAge?retAge+' 歲':'75歲前不足'}</div></div>
+      <div class="card"><div class="card-label">退休時累積資產</div>
+        <div class="card-val">${retRow?fmtAmt(retRow.port):'—'}</div>
+        <div class="card-sub">${CC[country].cur}</div></div>
+      <div class="card"><div class="card-label">起始儲蓄率</div>
+        <div class="card-val" style="color:${initSvr>=0?'#3B6D11':'#E24B4A'}">${initSvr}%</div>
+        <div class="card-sub">稅後收 − 住屋 − 日常 / 稅後收</div></div>
+    </div>`;
+    h+=`<div class="chart-wrap"><div class="chart-legend">
+        <span><span class="leg-dot" style="background:#BA7517"></span>累積資產</span>
+        <span><span class="leg-dot" style="background:#185FA5"></span>退休所需</span>
+      </div><canvas id="mainChart" style="width:100%;height:250px;"></canvas></div>`;
+    h+=tableHTML(rows,retAge);
+    document.getElementById('main').innerHTML=h;
+    chartInst=buildChart('mainChart',rows,retAge,250);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// GOAL MODE
+// ══════════════════════════════════════════════════════════════
+function renderGoal(){
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  if(detailChartInst){detailChartInst.destroy();detailChartInst=null;}
+  const housing=housingMode==='compare'?'buy':housingMode;
+  const target=S.targetRetireAge;
+  const salRows=CC[country].salRows;
+  const grid=salRows.map(sal=>goalScenarios.map(sc=>simulate(sal,sc.segs,S,housing).retAge));
+  const minSal=goalScenarios.map((_,si)=>{
+    const idx=salRows.findIndex((_,ri)=>grid[ri][si]&&grid[ri][si]<=target);
+    return idx>=0?salRows[idx]:null;
+  });
+  const bestSi=minSal.reduce((bi,v,i)=>v!==null&&(bi<0||v<minSal[bi])?i:bi,-1);
+  // Auto-select best combo on first render
+  if(!detailCombo && bestSi>=0 && minSal[bestSi]!=null){
+    detailCombo={sal:minSal[bestSi], si:bestSi};
+  }
+  let h=`<div class="goal-summary">`;
+  h+=`<b>目標：${target} 歲退休，每月 ${fmtAmt(S.retirementMonthly)} 生活費（今日幣值）</b><br>`;
+  if(bestSi>=0){
+    h+=`最優情境：<b>${goalScenarios[bestSi].name}</b>，起薪達 <b>${fmtMon(minSal[bestSi])}</b>/月 即可達成`;
+    const n=minSal.filter(v=>v!==null).length;
+    if(n<goalScenarios.length) h+=`（共 ${n}/${goalScenarios.length} 個情境有可達組合）`;
+  } else {
+    h+=`<span style="color:#c0392b">⚠ 目前參數下所有組合均無法達成。建議提高儲蓄率、調整支出或放寬退休年齡。</span>`;
+  }
+  h+=`<br><span style="font-size:10.5px;color:#5a7fa8">✓ 達成目標　△ 延遲 1–3 年　✗ 延遲 4 年以上或無法退休</span></div>`;
+
+  h+=`<div class="tbl-wrap" style="overflow-x:auto;"><table><thead><tr>
+    <th style="text-align:left;white-space:nowrap">起薪 / 情境 →</th>`;
+  goalScenarios.forEach((sc,si)=>{
+    h+=`<th style="text-align:center;min-width:78px;font-size:11px">
+      <div>${sc.name}</div>
+      <div style="font-size:9px;color:#aaa;font-weight:400;white-space:nowrap">${segSegsLabel(sc.segs)}</div>
+      ${minSal[si]?`<div style="font-size:9px;color:#3B6D11;font-weight:400">≥${fmtMon(minSal[si])}</div>`:'<div style="font-size:9px;color:#c0392b;font-weight:400">無可達組合</div>'}
+    </th>`;
+  });
+  h+=`</tr></thead><tbody>`;
+  salRows.forEach((sal,ri)=>{
+    h+=`<tr><td style="font-family:monospace;font-weight:600;white-space:nowrap">${fmtMon(sal)}</td>`;
+    goalScenarios.forEach((sc,si)=>{
+      const age=grid[ri][si];const{bg,c,txt}=goalStyle(age,target);
+      const sel=detailCombo&&detailCombo.sal===sal&&detailCombo.si===si;
+      h+=`<td style="text-align:center;padding:5px 4px"><div class="goal-cell" onclick="pickCombo(${sal},${si})"
+        style="background:${bg};color:${c};border-color:${sel?c:'transparent'}">${txt}</div></td>`;
+    });
+    h+=`</tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  h+=`<div class="legend-bar">
+    <div><span class="dot" style="background:#eaf3de;border:1px solid #2a5a0a"></span>達成目標</div>
+    <div><span class="dot" style="background:#fff3da;border:1px solid #854F0B"></span>延遲 1–3 年</div>
+    <div><span class="dot" style="background:#fce8e8;border:1px solid #a32d2d"></span>延遲 4 年以上</div>
+  </div>`;
+  if(detailCombo){
+    const sc=goalScenarios[detailCombo.si];
+    const{rows,retAge}=simulate(detailCombo.sal,sc.segs,S,housing);
+    const{c,txt}=goalStyle(retAge,target);
+    h+=`<div class="chart-wrap" style="border:1px solid ${c}55">
+      <div style="font-size:12px;font-weight:600;color:${c};margin-bottom:8px">
+        ${fmtMon(detailCombo.sal)} 起薪 × ${sc.name} → ${retAge?retAge+'歲退休（'+txt+')':'75歲前無法退休'}
+      </div>
+      <div class="chart-legend">
+        <span><span class="leg-dot" style="background:#BA7517"></span>累積資產</span>
+        <span><span class="leg-dot" style="background:#185FA5"></span>退休所需</span>
+      </div>
+      <canvas id="detailChart" style="width:100%;height:220px;"></canvas>
+    </div>`;
+    h+=tableHTML(rows,retAge);
+  }
+  document.getElementById('main').innerHTML=h;
+  if(detailCombo){
+    const sc=goalScenarios[detailCombo.si];
+    const{rows,retAge}=simulate(detailCombo.sal,sc.segs,S,housing);
+    detailChartInst=buildChart('detailChart',rows,retAge,220);
+  }
+}
+
+function renderMain(){syncRetirementMonthly();if(mode==='reality')renderReality();else renderGoal();}
+function onNumInput(key, val, obj){
+  if(obj==='R') R[key]=+val; else S[key]=+val;
+  syncRetirementMonthly();
+  renderMain();
+  updateSidebarDynamic();
+}
+function updateSidebarDynamic(){
+  // cost summary
+  const cs=document.getElementById('sd_cost_summary');
+  if(cs){
+    const m=S.mealPerMeal*S.mealsPerDay*30, e=S.weekendDailyBudget*8, t=m+e;
+    cs.innerHTML=`餐費：${fmtAmt(m)}/月　娛樂：${fmtAmt(e)}/月<br><b>合計：${fmtAmt(t)}/月（${fmtAmt(t*12)}/年）</b>`;
+  }
+  // retirement monthly badge
+  const rb=document.getElementById('sd_ret_badge');
+  if(rb){
+    const rm=computedRetirementMonthly();
+    const dailyNow=monthlyDailyExpenses();
+    rb.innerHTML=`推算退休月支出：<b style="color:#185FA5">${fmtAmt(rm)}</b> / 月<br>`+
+      `<span style="color:#888">日常月支出 ${fmtAmt(dailyNow)} × ${S.replacementRate}%`+
+      `${rm>Math.round(dailyNow*S.replacementRate/100)?' （已取日常開銷為下限）':''}</span>`;
+  }
+  // period hint now embedded as i tooltip in the label, no box to update
+}
+function renderAll(){renderSidebar();renderMain();}
+renderAll();
+</script>
+</body>
+</html>
